@@ -21,4 +21,7 @@ clean:
 	@rm -rf ./storage
 	@rm -f ./persist
 	@rm -f ./nfs_client_history.txt
+	@rm -rf ./conf/*
+	@rm -rf ./data/*
+	@rm -rf ./datalog/*
 	@echo "Cleaned up storage and persist."
