@@ -56,16 +56,15 @@ class FileSystem:
         '''
         parts = self._validate_and_split_path(file_path)
         current_dir = self.root
-        t = []
+        t_path = ""
         for part in parts[1:-1]:
             try:
-                t.append(part)
+                t_path += f"/{part}"
                 with self.lock:
                     current_dir = self._traverse_directory(current_dir, part)
             except FileNotFoundError as e:
                 # Directory DNE, then create one
-                with self.lock:
-                    current_dir = self.create_directory(Path(*t).as_posix())
+                current_dir = self.create_directory(Path(t_path).as_posix())
         # Check if file exists
         file_to_open: FileNode = None
         with self.lock:
@@ -131,15 +130,15 @@ class FileSystem:
                 except FileNotFoundError as e:
                     raise e
         
-        file_to_mutate = current_dir.children.get(parts[-1])
-        
-        if not file_to_mutate or not isinstance(file_to_mutate, FileNode):
+        with self.lock:
+            file_to_mutate = current_dir.children.get(parts[-1])
+            
+            if not file_to_mutate or not isinstance(file_to_mutate, FileNode):
                 raise FileNotFoundError(f"File {file} not found")
         
-        # file_to_mutate.modified_at = time.time()  # Update the modification time
-        new_file_node.modified_at = time.time()
-        
-        with self.lock:
+            # file_to_mutate.modified_at = time.time()  # Update the modification time
+            new_file_node.modified_at = time.time()
+            
             current_dir.mutate_file(parts[-1], new_file_node)
             return new_file_node
     
@@ -258,6 +257,7 @@ class FileSystem:
                 raise FileNotFoundError(f"File {abs_path} not found")
             
             file_path = Path(self.base_data_folder, file_node.file_id)
+            
             try:
                 with open(file_path, 'rb') as f:
                     return f.read()
@@ -279,9 +279,13 @@ class FileSystem:
             # Write the data
             try:
                 with open(file_path, 'wb') as f:
-                    return f.write(data)
+                    bytes_written = f.write(data)
+                    f.flush()
+                    return bytes_written
             except IOError as e:
                 raise IOError(f"Failed to write to {abs_path}: {e}")
+            except Exception as e:
+                raise Exception(e)
 
     def save(self, file_path: str):
         with self.lock:  # Locking the critical section

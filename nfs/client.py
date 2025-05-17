@@ -224,6 +224,9 @@ class NFSClient:
         
         file_path = parts[0]
         
+        if not await self.lock(FileNode("", Path(file_path))):
+            return
+        
         openRequest = OpenRequest()
         response = await self.websocket_comm(
             nfs_server_uri,
@@ -237,8 +240,7 @@ class NFSClient:
             print(colored(openResponse.message, "red"))
             return
         
-        if not await self.lock(openResponse.file_node):
-            return
+        self.current_file_node = openResponse.file_node
         
         print(colored(openResponse.message, "light_blue"))
         
@@ -277,7 +279,7 @@ class NFSClient:
         
         temp_file_node = self.current_file_node
         # Check if a file opened
-        if not await self.unlock():
+        if not self.has_file_open():
             return
         
         temp_file_size:int = os.path.getsize(self.temp_file)
@@ -320,6 +322,10 @@ class NFSClient:
         
         if not closeResponse.OK:
             print(colored(closeResponse.message, "red"))
+            return
+        
+        # Unlock the file
+        if not await self.unlock():
             return
         
         os.remove(self.temp_file)
@@ -481,10 +487,9 @@ class NFSClient:
             self.current_file_node = None
             self.current_zk_lock = None
         
-        try:  
-            self.current_file_node = file_node
-            await self.zk_lock(self.current_file_node.file_path.as_posix())
-            assert not self.current_file_node == None and not self.current_zk_lock == None
+        try:
+            await self.zk_lock(file_node.file_path.as_posix())
+            assert not file_node == None and not self.current_zk_lock == None
         except AssertionError as e:
             print(f"An error occured while locking file: {e}")
             return False

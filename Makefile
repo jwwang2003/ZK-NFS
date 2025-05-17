@@ -1,6 +1,6 @@
 .PHONY: default tests clean
 
-default: run_zk_docker
+default: docker
 	@echo "Starting NFS server and client..."
 	@bash -c '\
 		python -m nfs.server & \
@@ -9,7 +9,7 @@ default: run_zk_docker
 		python -m nfs.client \
 	'
 
-run_zk_docker:
+docker:
 	@docker compose up -d
 
 tests:
@@ -20,4 +20,5 @@ clean:
 	@echo "Cleaning up..."
 	@rm -rf ./storage
 	@rm -f ./persist
+	@rm -f ./nfs_client_history.txt
 	@echo "Cleaned up storage and persist."
